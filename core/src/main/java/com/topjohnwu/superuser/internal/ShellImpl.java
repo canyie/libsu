@@ -27,6 +27,7 @@ import com.topjohnwu.superuser.ShellUtils;
 
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FilterInputStream;
 import java.io.FilterOutputStream;
 import java.io.IOException;
@@ -158,14 +159,19 @@ class ShellImpl extends Shell {
             }
 
             if (status == ROOT_SHELL) {
-                STDIN.write(("readlink /proc/self/ns/mnt\n").getBytes(UTF_8));
-                STDIN.flush();
-                s = br.readLine();
-                STDIN.write(("readlink /proc/1/ns/mnt\n").getBytes(UTF_8));
-                STDIN.flush();
-                String s2 = br.readLine();
-                if (!TextUtils.isEmpty(s) && !TextUtils.isEmpty(s2) && TextUtils.equals(s, s2))
+                // Linux kernels before 3.8 don't have /proc/pid/ns/mnt
+                if (new File("/proc/self/ns/mnt").exists()) {
+                    STDIN.write(("readlink /proc/self/ns/mnt\n").getBytes(UTF_8));
+                    STDIN.flush();
+                    s = br.readLine();
+                    STDIN.write(("readlink /proc/1/ns/mnt\n").getBytes(UTF_8));
+                    STDIN.flush();
+                    String s2 = br.readLine();
+                    if (!TextUtils.isEmpty(s) && !TextUtils.isEmpty(s2) && TextUtils.equals(s, s2))
+                        status = ROOT_MOUNT_MASTER;
+                } else if (this.status == ROOT_MOUNT_MASTER) {
                     status = ROOT_MOUNT_MASTER;
+                }
             }
         }
         return status;
